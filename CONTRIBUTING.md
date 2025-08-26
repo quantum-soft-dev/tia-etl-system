@@ -17,7 +17,7 @@
 
 2. Clone repository:
 ```bash
-git clone https://github.com/plissb/tia-etl-system.git
+git clone https://github.com/quantum-soft-dev/tia-etl-system.git
 cd tia-etl-system
 ```
 

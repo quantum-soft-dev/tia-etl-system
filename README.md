@@ -38,7 +38,6 @@ TIA ETL System is a high-performance data processing platform designed to handle
 ### Prerequisites
 
 - Java 21 LTS
-- Gradle (kotlin syntax)
 - Docker & Docker Compose
 - PostgreSQL 16+
 - ClickHouse (latest)
@@ -49,13 +48,13 @@ TIA ETL System is a high-performance data processing platform designed to handle
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/tia/tia-etl-system.git
+git clone https://github.com/quantum-soft-dev/tia-etl-system.git
 cd tia-etl-system
 ```
 
 2. **Start infrastructure services**
 ```bash
-docker-compose -f deployment/docker-compose.yml up -d postgres clickhouse redis keycloak
+docker-compose -f deployment/docker-compose.yml up -d
 ```
 
 3. **Build the project**
@@ -80,7 +79,6 @@ npm run dev
 ```
 
 Access the application at http://localhost:3000
-
 ## 📁 Project Structure
 
 ```
@@ -190,14 +188,22 @@ See [.agent-os/product/](.agent-os/product/) for project documentation.
 
 See [.agent-os/product/roadmap.md](.agent-os/product/roadmap.md) for detailed development plan.
 
+## 🤝 Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
 ## 📄 License
 
-Proprietary - TIA Company
+Proprietary - TIA Company / Quantum Soft Dev
 
 ## 👥 Team
 
-Developed by TIA Engineering Team with Agent OS assistance.
+Developed by Quantum Soft Dev Team with Agent OS assistance.
 
 ---
 
-For support, contact: support@tia.lr
+For support, contact: support@quantum-soft.dev
+
+## Repository
+
+https://github.com/quantum-soft-dev/tia-etl-system
