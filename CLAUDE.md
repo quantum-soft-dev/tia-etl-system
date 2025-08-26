@@ -42,11 +42,11 @@ data class ProcessingContext(
 ## Technology Stack
 
 ### Backend Requirements
-- **Kotlin 1.9+** with coroutines for async operations
-- **Spring Boot 3.2+** for REST APIs and DI
-- **MapStruct** for DTO mappings
-- **JPA + Liquibase** for PostgreSQL
-- **ClickHouse JDBC** for batch inserts
+- **Kotlin 2.0.21** with coroutines for async operations
+- **Spring Boot 3.3.5** for REST APIs and DI
+- **MapStruct 1.6.3** for DTO mappings
+- **JPA + Liquibase 4.30.0** for PostgreSQL
+- **ClickHouse JDBC 0.7.1** for batch inserts
 - **Redis** for distributed locks and queues
 
 ### Frontend Requirements
