@@ -5,6 +5,7 @@ plugins {
     id("org.springframework.boot") version "3.3.5"
     id("io.spring.dependency-management") version "1.1.6"
     id("org.owasp.dependencycheck") version "8.4.0"
+    id("maven-publish")
     jacoco
 }
 
@@ -188,11 +189,103 @@ dependencyCheck {
     // analyzers configuration removed - not needed for Java/Kotlin project
 }
 
-// Fat JAR Configuration for deployment
+// Sources JAR
+tasks.register<Jar>("sourcesJar") {
+    archiveClassifier.set("sources")
+    from(sourceSets.main.get().allSource)
+    dependsOn(tasks.classes)
+}
+
+// Javadoc JAR
+tasks.register<Jar>("javadocJar") {
+    archiveClassifier.set("javadoc")
+    from(tasks.javadoc.get().destinationDir)
+    dependsOn(tasks.javadoc)
+}
+
+// Configure javadoc task for Kotlin
+tasks.javadoc {
+    if (JavaVersion.current().isJava9Compatible) {
+        (options as StandardJavadocDocletOptions).addBooleanOption("html5", true)
+    }
+}
+
+// Maven Publishing Configuration
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = project.group.toString()
+            artifactId = project.name
+            version = project.version.toString()
+            
+            from(components["java"])
+            
+            // Add sources and javadoc JARs
+            artifact(tasks["sourcesJar"])
+            artifact(tasks["javadocJar"])
+            
+            pom {
+                name.set("ZTE ASN.1 Parser Library")
+                description.set("ZTE ASN.1 CDR parser library for processing ZTE ZXUN CG ASN.1 encoded CDR files")
+                url.set("https://github.com/quantum-soft-dev/tia-etl-system")
+                
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+                
+                developers {
+                    developer {
+                        id.set("quantum-soft")
+                        name.set("Quantum Soft Development Team")
+                        email.set("dev@quantum-soft.com")
+                    }
+                }
+                
+                scm {
+                    connection.set("scm:git:git://github.com/quantum-soft-dev/tia-etl-system.git")
+                    developerConnection.set("scm:git:ssh://github.com/quantum-soft-dev/tia-etl-system.git")
+                    url.set("https://github.com/quantum-soft-dev/tia-etl-system")
+                }
+            }
+        }
+    }
+    
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/quantum-soft-dev/tia-etl-system")
+            credentials {
+                username = System.getenv("GITHUB_ACTOR") ?: project.findProperty("gpr.user") as String?
+                password = System.getenv("GITHUB_TOKEN") ?: project.findProperty("gpr.key") as String?
+            }
+        }
+    }
+}
+
+// Release build task for publishing
+tasks.register("releaseBuild") {
+    description = "Build release version for publishing"
+    group = "publishing"
+    
+    dependsOn(
+        tasks.clean,
+        tasks.build,
+        tasks.test,
+        tasks.jacocoTestReport,
+        tasks.jar,
+        tasks["sourcesJar"],
+        tasks["javadocJar"]
+    )
+}
+
+// Fat JAR Configuration for deployment (plugin execution)
 tasks.bootJar {
     enabled = true
-    archiveClassifier.set("")
-    archiveFileName.set("${project.name}.jar")
+    archiveClassifier.set("executable")
+    archiveFileName.set("${project.name}-executable.jar")
     
     // Handle duplicate files
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -217,10 +310,10 @@ tasks.bootJar {
     }
 }
 
-// Regular JAR (thin JAR)
+// Regular JAR (library JAR for Maven dependency)
 tasks.jar {
     enabled = true
-    archiveClassifier.set("thin")
+    archiveClassifier.set("")
     
     manifest {
         attributes["Implementation-Title"] = project.name
@@ -234,7 +327,7 @@ tasks.jar {
 // Build Task Dependencies
 tasks.build {
     dependsOn(tasks.jacocoTestReport)
-    dependsOn(tasks.bootJar)
+    dependsOn(tasks.jar)
 }
 
 // Custom Tasks
@@ -251,7 +344,7 @@ tasks.register("qualityCheck") {
 }
 
 tasks.register("deploymentPackage") {
-    description = "Creates deployment package with all necessary files"
+    description = "Creates deployment package with executable JAR for parser deployment"
     group = "deployment"
     
     dependsOn(tasks.bootJar)
@@ -262,33 +355,39 @@ tasks.register("deploymentPackage") {
         
         deploymentDir.mkdirs()
         
-        // Copy fat JAR
+        // Copy executable JAR
         copy {
             from(libsDir)
             into(deploymentDir)
-            include("${project.name}.jar")
+            include("${project.name}-executable.jar")
         }
         
-        // Copy Kubernetes manifests
-        copy {
-            from("k8s")
-            into("$deploymentDir/k8s")
+        // Copy Kubernetes manifests if they exist
+        if (file("k8s").exists()) {
+            copy {
+                from("k8s")
+                into("$deploymentDir/k8s")
+            }
         }
         
-        // Copy Helm chart
-        copy {
-            from("charts")
-            into("$deploymentDir/charts")
+        // Copy Helm chart if it exists
+        if (file("charts").exists()) {
+            copy {
+                from("charts")
+                into("$deploymentDir/charts")
+            }
         }
         
-        // Copy deployment scripts
-        copy {
-            from("scripts")
-            into("$deploymentDir/scripts")
-            include("*.sh")
+        // Copy deployment scripts if they exist
+        if (file("scripts").exists()) {
+            copy {
+                from("scripts")
+                into("$deploymentDir/scripts")
+                include("*.sh")
+            }
         }
         
-        // Create metadata file
+        // Create metadata file for parser registration
         val metadata = mapOf(
             "parserId" to "zte-asn1-parser",
             "name" to "ZTE ASN.1 CDR Parser",
@@ -300,7 +399,7 @@ tasks.register("deploymentPackage") {
             "batchSize" to 1000,
             "requiresValidation" to true,
             "buildTime" to System.currentTimeMillis().toString(),
-            "jarPath" to "/opt/tia/parsers/zte-asn1-parser/current/zte-asn1-parser.jar",
+            "jarPath" to "/opt/tia/parsers/zte-asn1-parser/current/${project.name}-executable.jar",
             "mainClass" to "com.quantumsoft.tia.parsers.zte.ZteAsn1ParserApplication"
         )
         
