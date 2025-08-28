@@ -96,7 +96,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/quantum-soft/tia-etl-system")
+            url = uri("https://maven.pkg.github.com/quantum-soft-dev/tia-etl-system")
             credentials {
                 username = System.getenv("GITHUB_ACTOR") ?: findProperty("gpr.user")?.toString()
                 password = System.getenv("GITHUB_TOKEN") ?: findProperty("gpr.key")?.toString()

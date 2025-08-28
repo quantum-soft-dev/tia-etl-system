@@ -18,7 +18,7 @@ repositories {
     mavenCentral()
     maven {
         name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/quantum-soft/tia-etl-system")
+        url = uri("https://maven.pkg.github.com/quantum-soft-dev/tia-etl-system")
         credentials {
             username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
             password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
@@ -38,7 +38,7 @@ repositories {
     mavenCentral()
     maven {
         name = "GitHubPackages"
-        url = "https://maven.pkg.github.com/quantum-soft/tia-etl-system"
+        url = "https://maven.pkg.github.com/quantum-soft-dev/tia-etl-system"
         credentials {
             username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
             password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")
@@ -57,7 +57,7 @@ dependencies {
 <repositories>
     <repository>
         <id>github</id>
-        <url>https://maven.pkg.github.com/quantum-soft/tia-etl-system</url>
+        <url>https://maven.pkg.github.com/quantum-soft-dev/tia-etl-system</url>
     </repository>
 </repositories>
 
@@ -237,7 +237,7 @@ repositories {
     mavenCentral()
     maven {
         name = "GitHubPackages"
-        url = uri("https://maven.pkg.github.com/quantum-soft/tia-etl-system")
+        url = uri("https://maven.pkg.github.com/quantum-soft-dev/tia-etl-system")
         credentials {
             username = project.findProperty("gpr.user") ?: System.getenv("USERNAME")
             password = project.findProperty("gpr.key") ?: System.getenv("TOKEN")

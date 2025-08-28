@@ -10,16 +10,16 @@ TIA ETL System is a high-performance data processing platform designed to handle
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Web Console (React)                   │
+│                    Web Console (React)                  │
 ├─────────────────────────────────────────────────────────┤
-│                   Job Manager Service                    │
-├─────────────┬────────────────┬─────────────────────────┤
+│                   Job Manager Service                   │
+├──────────────┬────────────────┬─────────────────────────┤
 │ File Scanner │ Parser         │ Monitoring              │
 │   Service    │ Orchestrator   │   Service               │
 ├──────────────┴────────────────┴─────────────────────────┤
-│            Redis Queue & Distributed Locks               │
+│            Redis Queue & Distributed Locks              │
 ├─────────────────────────────────────────────────────────┤
-│     PostgreSQL          │        ClickHouse              │
+│     PostgreSQL          │        ClickHouse             │
 └─────────────────────────────────────────────────────────┘
 ```
 
