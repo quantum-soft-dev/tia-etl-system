@@ -237,7 +237,7 @@ jobs:
       - name: Create GitHub Release
         if: github.ref == 'refs/heads/main'
         id: create_release
-        uses: ncipollo/create-release@v1
+        uses: ncipollo/release-action@v1
         with:
           tag: ${{ needs.semantic-version.outputs.tag }}
           name: Parser API v${{ needs.semantic-version.outputs.version }}
