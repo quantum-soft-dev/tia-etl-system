@@ -50,11 +50,6 @@ Use the context-fetcher subagent to identify spec initiation method by either fi
 
 Use the context-fetcher subagent to read @.agent-os/product/mission-lite.md and @.agent-os/product/tech-stack.md only if not already in context to ensure minimal context for spec alignment.
 
-IMPORTANT: For TIA ETL System, always use:
-- @.agent-os/product/tech-stack.md (NOT .agent-os/standards/tech-stack.md)
-- Kotlin/Spring Boot patterns (NOT Ruby on Rails)
-- Follow @.agent-os/standards/kotlin-conventions.md
-
 <conditional_logic>
   IF both mission-lite.md AND tech-stack.md already read in current context:
     SKIP this entire step
@@ -62,13 +57,13 @@ IMPORTANT: For TIA ETL System, always use:
   ELSE:
     READ only files not already in context:
       - mission-lite.md (if not in context)
-      - tech-stack.md (if not in context) - USE product/tech-stack.md
+      - tech-stack.md (if not in context)
     CONTINUE with context analysis
 </conditional_logic>
 
 <context_analysis>
   <mission_lite>core product purpose and value</mission_lite>
-  <tech_stack>Kotlin 2.0.21, Spring Boot 3.3.5, PostgreSQL, ClickHouse, Redis</tech_stack>
+  <tech_stack>technical requirements</tech_stack>
 </context_analysis>
 
 </step>

@@ -176,6 +176,14 @@ sealed class ScanInterval {
 4. Write tests alongside implementation
 5. Document APIs with OpenAPI
 
+## Agent OS Configuration Override
+When using Agent OS commands:
+- **CRITICAL**: Always check `.agent-os/overrides.md` first
+- Use Kotlin/Spring Boot templates from `.agent-os/templates/kotlin/`
+- Follow `.agent-os/standards/kotlin-conventions.md`
+- Execute tasks using `.agent-os/instructions/kotlin/execute-tasks.md`
+- Generate services with `.agent-os/instructions/kotlin/create-service.md`
+
 ## Common Patterns
 
 ### Health Check
