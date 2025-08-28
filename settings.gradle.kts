@@ -1,6 +1,11 @@
 rootProject.name = "tia-etl-system"
 
-// Modules will be added as they are created by Claude Code
+// Core modules
+include("core:parser-api")
+
+// Service modules will be added as they are created by Claude Code
 // Example:
-// include("core:parser-api")
 // include("services:file-scanner")
+// include("services:parser-orchestrator")
+// include("services:job-manager")
+// include("services:monitoring")
