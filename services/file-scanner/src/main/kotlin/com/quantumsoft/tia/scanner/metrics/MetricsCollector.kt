@@ -8,4 +8,7 @@ interface MetricsCollector {
     fun recordScanRate(filesPerSecond: Double)
     fun recordError(errorType: String)
     fun recordSkippedFile(reason: String)
+    fun recordFilesQueued(count: Int)
+    fun recordQueueDepth(depth: Long)
+    fun recordProcessingDuration(duration: Duration)
 }
