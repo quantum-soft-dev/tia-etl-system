@@ -3,6 +3,9 @@ rootProject.name = "tia-etl-system"
 // Core modules
 include("core:parser-api")
 
+// Parser implementations
+include("parsers:zte-asn1-parser")
+
 // Service modules will be added as they are created by Claude Code
 // Example:
 // include("services:file-scanner")
