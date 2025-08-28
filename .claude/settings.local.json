@@ -1,7 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(gh run view:*)"
+      "Bash(gh run view:*)",
+      "Read(/tmp/zte-parser-analysis/zte-data/**)",
+      "Read(/tmp/zte-parser-analysis/zte-data/src/main/java/com/bd/asn/zte/data/pgw_r8_new/**)",
+      "Read(/tmp/zte-parser-analysis/zte-data/src/test/java/**)",
+      "Read(/tmp/zte-parser-analysis/zte-data/**)",
+      "Read(/tmp/zte-parser-analysis/**)",
+      "Read(/tmp/zte-parser-analysis/src/main/java/com/bd/asn/zte/data/pgw_r8_new/**)",
+      "Read(/tmp/zte-parser-analysis/src/test/java/**)",
+      "Read(/tmp/zte-parser-analysis/**)"
     ],
     "deny": [],
     "ask": []
