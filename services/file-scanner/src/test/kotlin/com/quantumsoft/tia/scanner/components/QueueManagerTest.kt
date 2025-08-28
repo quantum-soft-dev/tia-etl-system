@@ -1,300 +1,302 @@
 package com.quantumsoft.tia.scanner.components
 
-import com.quantumsoft.tia.scanner.models.QueuedFile
-import com.quantumsoft.tia.scanner.models.FileQueueStatus
-import com.quantumsoft.tia.scanner.models.ScannedFile
+import com.quantumsoft.tia.scanner.models.*
+import com.quantumsoft.tia.scanner.metrics.MetricsCollector
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.springframework.data.redis.core.RedisTemplate
-import org.springframework.data.redis.core.ValueOperations
-import org.springframework.data.redis.core.SetOperations
-import org.springframework.data.redis.core.ListOperations
+import org.springframework.data.redis.core.*
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.TimeUnit
 
 class QueueManagerTest {
 
+    private lateinit var redisTemplate: RedisTemplate<String, String>
+    private lateinit var valueOps: ValueOperations<String, String>
+    private lateinit var listOps: ListOperations<String, String>
+    private lateinit var metricsCollector: MetricsCollector
     private lateinit var queueManager: QueueManager
-    private val redisTemplate = mockk<RedisTemplate<String, String>>()
-    private val valueOps = mockk<ValueOperations<String, String>>()
-    private val setOps = mockk<SetOperations<String, String>>()
-    private val listOps = mockk<ListOperations<String, String>>()
     
     @BeforeEach
     fun setUp() {
+        redisTemplate = mockk(relaxed = true)
+        valueOps = mockk(relaxed = true)
+        listOps = mockk(relaxed = true)
+        metricsCollector = mockk(relaxed = true)
+        
         every { redisTemplate.opsForValue() } returns valueOps
-        every { redisTemplate.opsForSet() } returns setOps
         every { redisTemplate.opsForList() } returns listOps
-        queueManager = QueueManager(redisTemplate)
+        every { redisTemplate.keys(any()) } returns emptySet()
+        
+        queueManager = QueueManager(redisTemplate, metricsCollector)
     }
     
     @Test
     fun `should queue file successfully`() = runTest {
         // Given
-        val scannedFile = ScannedFile(
-            filePath = "/test/path/file1.asn1",
-            fileName = "file1.asn1",
-            fileSizeBytes = 1024L,
+        val file = ScannedFile(
+            filePath = "/test/file.asn1",
+            fileName = "file.asn1",
+            fileSizeBytes = 1024,
             lastModified = Instant.now(),
             fileHash = "abc123"
         )
         
-        every { valueOps.setIfAbsent(any(), any(), any(), any()) } returns true
-        every { listOps.rightPush("file_queue", any()) } returns 1L
-        every { setOps.add("queued_files", any()) } returns 1L
+        val request = QueueRequest(
+            jobId = "job-123",
+            file = file,
+            priority = Priority.NORMAL
+        )
+        
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns true
         
         // When
-        val result = queueManager.queueFile(scannedFile, priority = 1, jobId = "job-123")
+        val result = queueManager.queueFile(request)
         
         // Then
-        assertThat(result.isSuccess).isTrue()
-        assertThat(result.queuedFile?.filePath).isEqualTo("/test/path/file1.asn1")
-        assertThat(result.queuedFile?.priority).isEqualTo(1)
-        assertThat(result.queuedFile?.jobId).isEqualTo("job-123")
+        assertThat(result.success).isTrue()
+        assertThat(result.queueId).isNotNull()
+        assertThat(result.message).contains("successfully")
         
-        verify { valueOps.setIfAbsent(match { it.startsWith("lock:") }, any(), 5L, TimeUnit.MINUTES) }
-        verify { listOps.rightPush("file_queue", any()) }
-        verify { setOps.add("queued_files", "/test/path/file1.asn1") }
+        verify { listOps.rightPush(any(), any()) }
+        verify { metricsCollector.recordFilesQueued(1) }
     }
     
     @Test
-    fun `should fail to queue duplicate file`() = runTest {
+    fun `should detect duplicate files`() = runTest {
         // Given
-        val scannedFile = ScannedFile(
-            filePath = "/test/path/duplicate.asn1",
-            fileName = "duplicate.asn1",
-            fileSizeBytes = 1024L,
+        val file = ScannedFile(
+            filePath = "/test/file.asn1",
+            fileName = "file.asn1",
+            fileSizeBytes = 1024,
+            lastModified = Instant.now(),
+            fileHash = "abc123"
+        )
+        
+        val request = QueueRequest(
+            jobId = "job-123",
+            file = file
+        )
+        
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns false
+        
+        // When
+        val result = queueManager.queueFile(request)
+        
+        // Then
+        assertThat(result.success).isFalse()
+        assertThat(result.duplicateDetected).isTrue()
+        assertThat(result.message).contains("already queued")
+        
+        verify(exactly = 0) { listOps.rightPush(any(), any()) }
+    }
+    
+    @Test
+    fun `should handle different priorities`() = runTest {
+        // Given
+        val highPriorityFile = ScannedFile(
+            filePath = "/test/high.asn1",
+            fileName = "high.asn1",
+            fileSizeBytes = 1024,
             lastModified = Instant.now()
         )
         
-        every { valueOps.setIfAbsent(any(), any(), any(), any()) } returns false
+        val lowPriorityFile = ScannedFile(
+            filePath = "/test/low.asn1",
+            fileName = "low.asn1",
+            fileSizeBytes = 1024,
+            lastModified = Instant.now()
+        )
+        
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns true
         
         // When
-        val result = queueManager.queueFile(scannedFile, priority = 1, jobId = "job-123")
+        val highResult = queueManager.queueFile(
+            QueueRequest("job-1", highPriorityFile, Priority.HIGH)
+        )
+        val lowResult = queueManager.queueFile(
+            QueueRequest("job-2", lowPriorityFile, Priority.LOW)
+        )
         
         // Then
-        assertThat(result.isSuccess).isFalse()
-        assertThat(result.error).isEqualTo("File already queued or being processed")
+        assertThat(highResult.success).isTrue()
+        assertThat(lowResult.success).isTrue()
         
-        verify(exactly = 0) { listOps.rightPush(any(), any()) }
-        verify(exactly = 0) { setOps.add(any(), any()) }
+        verify { listOps.rightPush(match { it.contains("high") }, any()) }
+        verify { listOps.rightPush(match { it.contains("low") }, any()) }
     }
     
     @Test
-    fun `should queue files by priority`() = runTest {
+    fun `should batch queue multiple files`() = runTest {
         // Given
-        val highPriorityFile = ScannedFile("/high/priority.asn1", "priority.asn1", 1024L, Instant.now())
-        val lowPriorityFile = ScannedFile("/low/priority.asn1", "priority.asn1", 1024L, Instant.now())
+        val files = listOf(
+            ScannedFile("/test/file1.asn1", "file1.asn1", 1024, Instant.now()),
+            ScannedFile("/test/file2.asn1", "file2.asn1", 2048, Instant.now()),
+            ScannedFile("/test/file3.asn1", "file3.asn1", 3072, Instant.now())
+        )
         
-        every { valueOps.setIfAbsent(any(), any(), any(), any()) } returns true
-        every { listOps.rightPush(any(), any()) } returns 1L
-        every { setOps.add(any(), any()) } returns 1L
+        val requests = files.map { file ->
+            QueueRequest("job-123", file, Priority.NORMAL)
+        }
+        
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns true
         
         // When
-        val highResult = queueManager.queueFile(highPriorityFile, priority = 10, jobId = "job-123")
-        val lowResult = queueManager.queueFile(lowPriorityFile, priority = 1, jobId = "job-123")
+        val result = queueManager.batchQueue(requests)
         
         // Then
-        assertThat(highResult.isSuccess).isTrue()
-        assertThat(lowResult.isSuccess).isTrue()
+        assertThat(result.totalRequests).isEqualTo(3)
+        assertThat(result.successful).isEqualTo(3)
+        assertThat(result.failed).isEqualTo(0)
+        assertThat(result.results).hasSize(3)
         
-        // Verify high priority queue is used
-        verify { listOps.rightPush("file_queue_priority_10", any()) }
-        verify { listOps.rightPush("file_queue_priority_1", any()) }
+        verify(exactly = 3) { listOps.rightPush(any(), any()) }
     }
     
     @Test
-    fun `should dequeue next file by priority`() = runTest {
+    fun `should move failed messages to dead letter queue`() = runTest {
         // Given
-        val queuedFileJson = """{"filePath":"/test/file.asn1","fileName":"file.asn1","priority":5,"jobId":"job-123","queuedAt":"2024-01-01T10:00:00Z","status":"QUEUED"}"""
-        
-        every { listOps.leftPop("file_queue_priority_10") } returns null
-        every { listOps.leftPop("file_queue_priority_5") } returns queuedFileJson
-        every { setOps.remove("queued_files", "/test/file.asn1") } returns 1L
-        every { setOps.add("processing_files", "/test/file.asn1") } returns 1L
+        val queueId = "test-queue-id"
+        val reason = "Processing failed"
         
         // When
-        val result = queueManager.dequeueNext()
+        val result = queueManager.moveToDeadLetter(queueId, reason)
         
         // Then
-        assertThat(result).isNotNull()
-        assertThat(result?.filePath).isEqualTo("/test/file.asn1")
-        assertThat(result?.priority).isEqualTo(5)
-        assertThat(result?.status).isEqualTo(FileQueueStatus.PROCESSING)
+        assertThat(result).isTrue()
         
-        verify { listOps.leftPop("file_queue_priority_10") }
-        verify { listOps.leftPop("file_queue_priority_5") }
-        verify { setOps.remove("queued_files", "/test/file.asn1") }
-        verify { setOps.add("processing_files", "/test/file.asn1") }
+        verify { listOps.rightPush(match { it.contains("dlq") }, any()) }
+        verify { redisTemplate.expire(any(), any()) }
+        verify { metricsCollector.recordError("moved_to_dlq") }
     }
     
     @Test
-    fun `should return null when no files in queue`() = runTest {
-        // Given - empty queues
-        every { listOps.leftPop(any()) } returns null
-        
-        // When
-        val result = queueManager.dequeueNext()
-        
-        // Then
-        assertThat(result).isNull()
-    }
-    
-    @Test
-    fun `should mark file as completed`() = runTest {
+    fun `should handle retry count`() = runTest {
         // Given
-        val filePath = "/test/completed.asn1"
+        val file = ScannedFile(
+            filePath = "/test/retry.asn1",
+            fileName = "retry.asn1",
+            fileSizeBytes = 1024,
+            lastModified = Instant.now()
+        )
         
-        every { setOps.remove("processing_files", filePath) } returns 1L
-        every { setOps.add("completed_files", filePath) } returns 1L
-        every { valueOps.set(match { it.contains("result:") }, any()) } returns Unit
-        every { redisTemplate.expire(any(), any(), any()) } returns true
+        val request = QueueRequest(
+            jobId = "job-123",
+            file = file,
+            retryCount = 2,
+            maxRetries = 3
+        )
         
-        // When
-        val result = queueManager.markCompleted(filePath, "Processing completed successfully")
-        
-        // Then
-        assertThat(result.isSuccess).isTrue()
-        
-        verify { setOps.remove("processing_files", filePath) }
-        verify { setOps.add("completed_files", filePath) }
-        verify { valueOps.set(match { it.startsWith("result:") }, "Processing completed successfully") }
-        verify { redisTemplate.expire(match { it.startsWith("result:") }, 24L, TimeUnit.HOURS) }
-    }
-    
-    @Test
-    fun `should mark file as failed and retry`() = runTest {
-        // Given
-        val filePath = "/test/failed.asn1"
-        val errorMessage = "Processing failed"
-        
-        every { valueOps.get(match { it.contains("retry_count:") }) } returns "1"
-        every { valueOps.increment(match { it.contains("retry_count:") }) } returns 2L
-        every { setOps.remove("processing_files", filePath) } returns 1L
-        every { listOps.rightPush(any(), any()) } returns 1L
-        every { setOps.add("queued_files", filePath) } returns 1L
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns true
         
         // When
-        val result = queueManager.markFailed(filePath, errorMessage, maxRetries = 3)
+        val result = queueManager.queueFile(request)
         
         // Then
-        assertThat(result.isSuccess).isTrue()
-        assertThat(result.retryScheduled).isTrue()
+        assertThat(result.success).isTrue()
         
-        verify { valueOps.increment(match { it.startsWith("retry_count:") }) }
-        verify { setOps.remove("processing_files", filePath) }
-        verify { listOps.rightPush(match { it.contains("retry") }, any()) }
-        verify { setOps.add("queued_files", filePath) }
-    }
-    
-    @Test
-    fun `should mark file as permanently failed after max retries`() = runTest {
-        // Given
-        val filePath = "/test/failed.asn1"
-        val errorMessage = "Processing failed"
-        
-        every { valueOps.get(match { it.contains("retry_count:") }) } returns "3"
-        every { setOps.remove("processing_files", filePath) } returns 1L
-        every { setOps.add("failed_files", filePath) } returns 1L
-        every { valueOps.set(match { it.contains("error:") }, any()) } returns Unit
-        every { redisTemplate.expire(any(), any(), any()) } returns true
-        
-        // When
-        val result = queueManager.markFailed(filePath, errorMessage, maxRetries = 3)
-        
-        // Then
-        assertThat(result.isSuccess).isTrue()
-        assertThat(result.retryScheduled).isFalse()
-        assertThat(result.permanentFailure).isTrue()
-        
-        verify { setOps.remove("processing_files", filePath) }
-        verify { setOps.add("failed_files", filePath) }
-        verify { valueOps.set(match { it.startsWith("error:") }, errorMessage) }
-        verify(exactly = 0) { listOps.rightPush(any(), any()) }
+        verify { valueOps.set(match { it.contains("retry") }, "2", any<Duration>()) }
     }
     
     @Test
     fun `should get queue statistics`() = runTest {
         // Given
-        every { setOps.size("queued_files") } returns 10L
-        every { setOps.size("processing_files") } returns 3L
-        every { setOps.size("completed_files") } returns 25L
-        every { setOps.size("failed_files") } returns 2L
-        every { listOps.size("file_queue_priority_10") } returns 2L
-        every { listOps.size("file_queue_priority_5") } returns 5L
-        every { listOps.size("file_queue_priority_1") } returns 3L
+        every { listOps.size("tia:scanner:queue:high") } returns 5L
+        every { listOps.size("tia:scanner:queue:normal") } returns 10L
+        every { listOps.size("tia:scanner:queue:low") } returns 3L
+        every { redisTemplate.keys("tia:scanner:dlq:*") } returns setOf("tia:scanner:dlq:1")
+        every { listOps.size("tia:scanner:dlq:1") } returns 2L
         
         // When
         val stats = queueManager.getQueueStatistics()
         
         // Then
-        assertThat(stats.totalQueued).isEqualTo(10)
-        assertThat(stats.totalProcessing).isEqualTo(3)
-        assertThat(stats.totalCompleted).isEqualTo(25)
-        assertThat(stats.totalFailed).isEqualTo(2)
-        assertThat(stats.queuesByPriority[10]).isEqualTo(2)
-        assertThat(stats.queuesByPriority[5]).isEqualTo(5)
-        assertThat(stats.queuesByPriority[1]).isEqualTo(3)
+        assertThat(stats.currentDepth).isEqualTo(18L)
+        assertThat(stats.depthByPriority[Priority.HIGH]).isEqualTo(5L)
+        assertThat(stats.depthByPriority[Priority.NORMAL]).isEqualTo(10L)
+        assertThat(stats.depthByPriority[Priority.LOW]).isEqualTo(3L)
+        assertThat(stats.deadLetterCount).isEqualTo(2L)
     }
     
     @Test
-    fun `should clean up expired locks`() = runTest {
+    fun `should cleanup expired locks`() = runTest {
         // Given
-        val expiredLocks = setOf("lock:expired1.asn1", "lock:expired2.asn1")
-        every { redisTemplate.keys("lock:*") } returns expiredLocks
-        every { redisTemplate.getExpire("lock:expired1.asn1") } returns -1L
-        every { redisTemplate.getExpire("lock:expired2.asn1") } returns -1L
-        every { redisTemplate.delete("lock:expired1.asn1") } returns 1L
-        every { redisTemplate.delete("lock:expired2.asn1") } returns 1L
+        val lockKeys = setOf(
+            "tia:scanner:lock:file1",
+            "tia:scanner:lock:file2",
+            "tia:scanner:lock:file3"
+        )
+        
+        every { redisTemplate.keys("tia:scanner:lock:*") } returns lockKeys
+        every { redisTemplate.getExpire("tia:scanner:lock:file1", any()) } returns -1L
+        every { redisTemplate.getExpire("tia:scanner:lock:file2", any()) } returns 100L
+        every { redisTemplate.getExpire("tia:scanner:lock:file3", any()) } returns -2L
+        every { redisTemplate.delete(any<String>()) } returns true
         
         // When
-        val cleanedCount = queueManager.cleanupExpiredLocks()
+        val cleaned = queueManager.cleanupExpiredLocks()
         
         // Then
-        assertThat(cleanedCount).isEqualTo(2)
+        assertThat(cleaned).isEqualTo(2)
         
-        verify { redisTemplate.delete("lock:expired1.asn1") }
-        verify { redisTemplate.delete("lock:expired2.asn1") }
+        verify { redisTemplate.delete("tia:scanner:lock:file1") }
+        verify { redisTemplate.delete("tia:scanner:lock:file3") }
+        verify(exactly = 0) { redisTemplate.delete("tia:scanner:lock:file2") }
     }
     
     @Test
-    fun `should handle Redis connection failures gracefully`() = runTest {
+    fun `should handle Redis connection failure`() = runTest {
         // Given
-        every { valueOps.setIfAbsent(any(), any(), any(), any()) } throws RuntimeException("Redis connection failed")
+        val file = ScannedFile(
+            filePath = "/test/file.asn1",
+            fileName = "file.asn1",
+            fileSizeBytes = 1024,
+            lastModified = Instant.now()
+        )
         
-        val scannedFile = ScannedFile("/test/redis-fail.asn1", "redis-fail.asn1", 1024L, Instant.now())
+        val request = QueueRequest("job-123", file)
+        
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } throws RuntimeException("Redis connection failed")
         
         // When
-        val result = queueManager.queueFile(scannedFile, priority = 1, jobId = "job-123")
+        val result = queueManager.queueFile(request)
         
         // Then
-        assertThat(result.isSuccess).isFalse()
+        assertThat(result.success).isFalse()
         assertThat(result.error).contains("Redis connection failed")
+        
+        verify { metricsCollector.recordError("queue_failure") }
     }
     
     @Test
-    fun `should batch queue multiple files efficiently`() = runTest {
+    fun `should handle batch queue with mixed results`() = runTest {
         // Given
-        val files = (1..5).map { index ->
-            ScannedFile("/batch/file$index.asn1", "file$index.asn1", 1024L, Instant.now())
+        val files = listOf(
+            ScannedFile("/test/file1.asn1", "file1.asn1", 1024, Instant.now(), "hash1"),
+            ScannedFile("/test/file2.asn1", "file2.asn1", 2048, Instant.now(), "hash2"),
+            ScannedFile("/test/file3.asn1", "file3.asn1", 3072, Instant.now(), "hash3")
+        )
+        
+        val requests = files.map { file ->
+            QueueRequest("job-123", file)
         }
         
-        every { valueOps.setIfAbsent(any(), any(), any(), any()) } returns true
-        every { listOps.rightPushAll(any(), any()) } returns 5L
-        every { setOps.add("queued_files", *anyVararg()) } returns 5L
+        // First file succeeds, second is duplicate, third succeeds
+        every { valueOps.setIfAbsent(match { it.contains("hash1") }, any(), any<Duration>()) } returns true
+        every { valueOps.setIfAbsent(match { it.contains("hash2") }, any(), any<Duration>()) } returns false
+        every { valueOps.setIfAbsent(match { it.contains("hash3") }, any(), any<Duration>()) } returns true
         
         // When
-        val results = queueManager.queueFiles(files, priority = 5, jobId = "batch-job")
+        val result = queueManager.batchQueue(requests)
         
         // Then
-        assertThat(results.successCount).isEqualTo(5)
-        assertThat(results.failureCount).isEqualTo(0)
-        assertThat(results.queuedFiles).hasSize(5)
+        assertThat(result.totalRequests).isEqualTo(3)
+        assertThat(result.successful).isEqualTo(2)
+        assertThat(result.failed).isEqualTo(0)
+        assertThat(result.duplicates).isEqualTo(1)
         
-        verify { listOps.rightPushAll(any(), any()) }
+        verify(exactly = 2) { listOps.rightPush(any(), any()) }
     }
 }

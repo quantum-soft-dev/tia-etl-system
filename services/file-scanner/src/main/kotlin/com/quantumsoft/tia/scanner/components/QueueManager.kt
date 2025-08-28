@@ -113,8 +113,8 @@ class QueueManager(
         }
         
         val successful = results.count { it.success }
-        val failed = results.count { !it.success }
         val duplicates = results.count { it.duplicateDetected }
+        val failed = results.count { !it.success && !it.duplicateDetected }
         
         BatchQueueResult(
             totalRequests = requests.size,
@@ -188,8 +188,8 @@ class QueueManager(
             var cleaned = 0
             
             for (lockKey in locks) {
-                val ttl = redisTemplate.getExpire(lockKey, TimeUnit.SECONDS)
-                if (ttl == null || ttl < 0) {
+                val ttl = redisTemplate.getExpire(lockKey, TimeUnit.SECONDS) ?: -1L
+                if (ttl < 0) {
                     // Lock has no expiration or is already expired
                     redisTemplate.delete(lockKey)
                     cleaned++

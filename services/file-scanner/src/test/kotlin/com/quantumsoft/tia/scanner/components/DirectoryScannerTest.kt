@@ -164,7 +164,7 @@ class DirectoryScannerTest {
             recursiveScan = false,
             maxDepth = 1,
             maxFileSizeMb = 10,
-            scanTimeout = Duration.ofMillis(10) // Very short timeout but still reasonable
+            scanTimeout = Duration.ofMillis(1) // Very short timeout to force timeout
         )
         
         // When
