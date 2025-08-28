@@ -12,7 +12,9 @@
       "Read(/tmp/zte-parser-analysis/**)",
       "Bash(./gradlew:*)",
       "Bash(cat:*)",
-      "Read(/tmp/zte-parser-analysis/src/main/java/com/bd/asn/zte/data/pgw_r8_new/**)"
+      "Read(/tmp/zte-parser-analysis/src/main/java/com/bd/asn/zte/data/pgw_r8_new/**)",
+      "Bash(./gradlew test:*)",
+      "Bash(./gradlew:*)"
     ],
     "deny": [],
     "ask": []
