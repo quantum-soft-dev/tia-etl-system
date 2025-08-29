@@ -18,6 +18,7 @@ class TestConfiguration {
         return ObjectMapper().apply {
             registerKotlinModule()
             registerModule(JavaTimeModule())
+            registerModule(PageJacksonModule())
             disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
             disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         }
