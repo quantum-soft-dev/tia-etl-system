@@ -1,8 +1,7 @@
 package com.quantumsoft.tia.scanner.e2e
 
-import com.quantumsoft.tia.scanner.config.TestConfiguration
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
+import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.GenericContainer
@@ -14,23 +13,22 @@ import org.testcontainers.utility.DockerImageName
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
-        "spring.profiles.active=test",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.liquibase.enabled=false",
         "spring.quartz.auto-startup=false",
-        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
-        "logging.level.com.quantumsoft.tia=DEBUG"
+        "logging.level.com.quantumsoft.tia=DEBUG",
+        "logging.level.org.springframework.web=DEBUG"
     ]
 )
 @Testcontainers
-@Import(TestConfiguration::class)
+@ActiveProfiles("test")
 abstract class BaseE2ETest {
 
     companion object {
         
         @Container
         @JvmStatic
-        val postgresql = PostgreSQLContainer(DockerImageName.parse("postgres:15-alpine"))
+        val postgres = PostgreSQLContainer(DockerImageName.parse("postgres:15-alpine"))
             .withDatabaseName("tia_test")
             .withUsername("test")
             .withPassword("test")
@@ -44,15 +42,17 @@ abstract class BaseE2ETest {
         @DynamicPropertySource
         fun configureProperties(registry: DynamicPropertyRegistry) {
             // Database configuration
-            registry.add("spring.datasource.url", postgresql::getJdbcUrl)
-            registry.add("spring.datasource.username", postgresql::getUsername)
-            registry.add("spring.datasource.password", postgresql::getPassword)
+            registry.add("spring.datasource.url", postgres::getJdbcUrl)
+            registry.add("spring.datasource.username", postgres::getUsername)
+            registry.add("spring.datasource.password", postgres::getPassword)
             registry.add("spring.datasource.driver-class-name") { "org.postgresql.Driver" }
+            registry.add("spring.jpa.properties.hibernate.dialect") { "org.hibernate.dialect.PostgreSQLDialect" }
             
             // Redis configuration  
             registry.add("spring.data.redis.host", redis::getHost)
             registry.add("spring.data.redis.port", redis::getFirstMappedPort)
             registry.add("spring.data.redis.database") { "0" }
+            registry.add("spring.data.redis.timeout") { "5000ms" }
         }
     }
 }
