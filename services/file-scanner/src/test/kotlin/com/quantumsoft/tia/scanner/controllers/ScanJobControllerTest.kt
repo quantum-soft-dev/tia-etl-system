@@ -2,6 +2,9 @@ package com.quantumsoft.tia.scanner.controllers
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.quantumsoft.tia.scanner.config.TestConfiguration
+import com.quantumsoft.tia.scanner.controllers.jobs.JobsController
+import com.quantumsoft.tia.scanner.controllers.jobs.JobExecutionsController
+import com.quantumsoft.tia.scanner.controllers.jobs.JobStatisticsController
 import com.quantumsoft.tia.scanner.dto.*
 import com.quantumsoft.tia.scanner.entities.ExecutionStatus
 import com.quantumsoft.tia.scanner.entities.ScanIntervalType
@@ -22,7 +25,7 @@ import java.time.Duration
 import java.time.Instant
 import java.util.UUID
 
-@WebMvcTest(controllers = [ScanJobController::class])
+@WebMvcTest(controllers = [JobsController::class, JobExecutionsController::class, JobStatisticsController::class])
 @Import(TestConfiguration::class)
 class ScanJobControllerTest {
 

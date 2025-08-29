@@ -61,18 +61,3 @@ data class FileRetryResult(
     val message: String,
     val retryCount: Int
 )
-
-data class FileStatisticsDto(
-    val totalFiles: Int,
-    val statusDistribution: Map<FileStatus, Long>,
-    val averageFileSize: Double,
-    val totalSizeBytes: Long,
-    val oldestFile: Instant?,
-    val newestFile: Instant?
-)
-
-data class CleanupResult(
-    val deletedCount: Int,
-    val cleanedLocks: Int,
-    val message: String
-)

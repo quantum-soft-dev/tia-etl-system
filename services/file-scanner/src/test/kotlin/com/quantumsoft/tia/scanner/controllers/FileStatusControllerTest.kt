@@ -2,9 +2,12 @@ package com.quantumsoft.tia.scanner.controllers
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.quantumsoft.tia.scanner.config.TestConfiguration
-import com.quantumsoft.tia.scanner.controllers.CleanupRequest
-import com.quantumsoft.tia.scanner.controllers.CleanupResultDto
+import com.quantumsoft.tia.scanner.controllers.files.FilesController
+import com.quantumsoft.tia.scanner.controllers.files.FileStatisticsController
 import com.quantumsoft.tia.scanner.dto.*
+import com.quantumsoft.tia.scanner.dto.files.CleanupRequest
+import com.quantumsoft.tia.scanner.dto.files.CleanupResultDto
+import com.quantumsoft.tia.scanner.dto.files.FileStatisticsDto
 import com.quantumsoft.tia.scanner.entities.FileStatus
 import com.quantumsoft.tia.scanner.services.FileStatusService
 import org.junit.jupiter.api.Test
@@ -22,7 +25,7 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import java.time.Instant
 import java.util.UUID
 
-@WebMvcTest(controllers = [FileStatusController::class])
+@WebMvcTest(controllers = [FilesController::class, FileStatisticsController::class])
 @Import(TestConfiguration::class)
 class FileStatusControllerTest {
 

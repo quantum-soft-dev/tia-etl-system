@@ -1,6 +1,9 @@
 package com.quantumsoft.tia.scanner.controllers
 
 import com.quantumsoft.tia.scanner.config.TestConfiguration
+import com.quantumsoft.tia.scanner.controllers.metrics.ScannerMetricsController
+import com.quantumsoft.tia.scanner.controllers.metrics.DetailedMetricsController
+import com.quantumsoft.tia.scanner.controllers.metrics.QueueMetricsController
 import com.quantumsoft.tia.scanner.metrics.MetricsCollector
 import com.quantumsoft.tia.scanner.metrics.MetricsSummary
 import org.junit.jupiter.api.Test
@@ -14,7 +17,7 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import java.time.Duration
 
-@WebMvcTest(controllers = [MetricsController::class])
+@WebMvcTest(controllers = [ScannerMetricsController::class, DetailedMetricsController::class, QueueMetricsController::class])
 @Import(TestConfiguration::class)
 class MetricsControllerTest {
 
