@@ -6,7 +6,7 @@ plugins {
     kotlin("jvm") version "2.0.21"
     kotlin("plugin.spring") version "2.0.21"
     kotlin("plugin.jpa") version "2.0.21"
-    // jacoco temporarily disabled due to Java 24 compatibility issue
+    // jacoco // Disabled due to Java 24 compatibility issue
 }
 
 group = "com.quantumsoft.tia"
@@ -30,9 +30,12 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor:1.7.3")
     
+    // Jackson
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    
     // Database
     implementation("org.postgresql:postgresql")
-    implementation("org.liquibase:liquibase-core:4.30.0")
+    implementation("org.liquibase:liquibase-core")
     
     // Redis
     implementation("redis.clients:jedis")
@@ -47,20 +50,20 @@ dependencies {
     implementation(project(":core:parser-api"))
     
     // Testing - TDD Stack
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
-        exclude(group = "org.mockito")
-    }
-    testImplementation("io.mockk:mockk:1.13.8")
-    testImplementation("io.mockk:mockk-jvm:1.13.8")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("io.mockk:mockk")
+    testImplementation("io.mockk:mockk-jvm")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
     testImplementation("org.assertj:assertj-core:3.24.2")
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.1")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     
     // Integration Testing
-    testImplementation("org.testcontainers:testcontainers:1.19.3")
-    testImplementation("org.testcontainers:junit-jupiter:1.19.3")
-    testImplementation("org.testcontainers:postgresql:1.19.3")
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
+    testImplementation("com.redis.testcontainers:testcontainers-redis:1.6.4")
     
     // Contract Testing
     testImplementation("com.github.tomakehurst:wiremock-jre8:3.0.1")
@@ -88,9 +91,6 @@ tasks.withType<Test> {
         exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
     }
 }
-
-// Jacoco temporarily disabled due to Java 24 compatibility issue
-// Will re-enable when upgrading to compatible version
 
 // Test profiles
 val testProfile = project.findProperty("profile") ?: "unit"
@@ -123,4 +123,8 @@ tasks.test {
             include("**/*E2ETest.class")
         }
     }
+    // finalizedBy(tasks.jacocoTestReport) // Disabled due to Java 24 compatibility
 }
+
+// Jacoco disabled due to Java 24 compatibility issues
+// TODO: Re-enable when JaCoCo supports Java 24

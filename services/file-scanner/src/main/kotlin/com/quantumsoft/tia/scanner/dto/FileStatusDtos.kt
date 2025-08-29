@@ -32,3 +32,47 @@ data class FileStatusFilter(
     val minSize: Long? = null,
     val maxSize: Long? = null
 )
+
+data class FileDetailDto(
+    val id: UUID,
+    val jobId: UUID,
+    val jobName: String,
+    val fileName: String,
+    val filePath: String,
+    val fileSizeBytes: Long,
+    val fileHash: String,
+    val fileModifiedAt: Instant,
+    val status: FileStatus,
+    val discoveredAt: Instant,
+    val queuedAt: Instant?,
+    val processedAt: Instant?,
+    val completedAt: Instant?,
+    val queueId: String?,
+    val instanceId: String?,
+    val errorMessage: String?,
+    val retryCount: Int,
+    val processingDurationMs: Long?
+)
+
+data class FileRetryResult(
+    val fileId: UUID,
+    val status: FileStatus,
+    val queueId: String?,
+    val message: String,
+    val retryCount: Int
+)
+
+data class FileStatisticsDto(
+    val totalFiles: Int,
+    val statusDistribution: Map<FileStatus, Long>,
+    val averageFileSize: Double,
+    val totalSizeBytes: Long,
+    val oldestFile: Instant?,
+    val newestFile: Instant?
+)
+
+data class CleanupResult(
+    val deletedCount: Int,
+    val cleanedLocks: Int,
+    val message: String
+)

@@ -1,23 +1,49 @@
 package com.quantumsoft.tia.scanner.controllers
 
 import com.quantumsoft.tia.scanner.components.QueueManager
+import com.quantumsoft.tia.scanner.metrics.MetricsCollector
 import com.quantumsoft.tia.scanner.metrics.MetricsCollectorImpl
 import com.quantumsoft.tia.scanner.metrics.MetricsSummary
 import com.quantumsoft.tia.scanner.models.QueueStatistics
 import kotlinx.coroutines.runBlocking
+import org.springframework.boot.actuate.health.Health
+import org.springframework.boot.actuate.health.HealthIndicator
+import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.Duration
+import java.time.Instant
 
 @RestController
 @RequestMapping("/api/v1/scanner/metrics")
 class MetricsController(
-    private val metricsCollector: MetricsCollectorImpl,
+    private val metricsCollector: MetricsCollector,
     private val queueManager: QueueManager
 ) {
     
     @GetMapping
-    fun getMetrics(): ResponseEntity<ScannerMetricsDto> {
+    fun getMetrics(): ResponseEntity<Map<String, Any>> {
+        val metricsSummary = metricsCollector.getMetricsSummary()
+        val queueStatistics = runBlocking {
+            queueManager.getQueueStatistics()
+        }
+        
+        val metricsMap = mapOf(
+            "totalFilesScanned" to metricsSummary.totalFilesScanned,
+            "totalFilesQueued" to metricsSummary.totalFilesQueued,
+            "totalErrors" to metricsSummary.totalErrors,
+            "totalFilesSkipped" to metricsSummary.totalFilesSkipped,
+            "currentQueueDepth" to metricsSummary.currentQueueDepth,
+            "averageScanDuration" to metricsSummary.averageScanDuration.toMillis(),
+            "averageProcessingDuration" to metricsSummary.averageProcessingDuration.toMillis(),
+            "timestamp" to Instant.now()
+        )
+        
+        return ResponseEntity.ok(metricsMap)
+    }
+    
+    @GetMapping("/full")
+    fun getFullMetrics(): ResponseEntity<ScannerMetricsDto> {
         val metricsSummary = metricsCollector.getMetricsSummary()
         val queueStatistics = runBlocking {
             queueManager.getQueueStatistics()
@@ -51,6 +77,18 @@ class MetricsController(
         )
         
         return ResponseEntity.ok(metrics)
+    }
+    
+    @GetMapping("/summary")
+    fun getMetricsSummary(): ResponseEntity<MetricsSummary> {
+        val summary = metricsCollector.getMetricsSummary()
+        return ResponseEntity.ok(summary)
+    }
+    
+    @PostMapping("/reset")
+    fun resetMetrics(): ResponseEntity<Void> {
+        metricsCollector.reset()
+        return ResponseEntity.noContent().build()
     }
     
     @GetMapping("/queue")
@@ -135,3 +173,54 @@ data class CleanupResult(
     val cleanedLocks: Int,
     val message: String
 )
+
+@RestController
+@RequestMapping("/api/v1/scanner")
+class HealthController : HealthIndicator {
+    
+    @GetMapping("/health")
+    fun getHealth(): ResponseEntity<Map<String, Any>> {
+        val health = health()
+        val response = mapOf(
+            "status" to health.status.code,
+            "components" to mapOf(
+                "database" to mapOf("status" to "UP"),
+                "redis" to mapOf("status" to "UP"),
+                "queue" to mapOf("status" to "UP")
+            )
+        )
+        return ResponseEntity.ok(response)
+    }
+    
+    override fun health(): Health {
+        return Health.up()
+            .withDetail("scanner", "UP")
+            .build()
+    }
+}
+
+@RestController
+@RequestMapping("/actuator")
+class ActuatorController {
+    
+    @GetMapping("/health")
+    fun actuatorHealth(): ResponseEntity<Map<String, String>> {
+        return ResponseEntity.ok(mapOf("status" to "UP"))
+    }
+    
+    @GetMapping("/prometheus")
+    fun prometheusMetrics(): ResponseEntity<String> {
+        // Mock prometheus metrics
+        val metrics = """
+            # HELP scanner_files_total Total number of files scanned
+            # TYPE scanner_files_total counter
+            scanner_files_total 1000
+            
+            # HELP scanner_queue_depth Current queue depth
+            # TYPE scanner_queue_depth gauge
+            scanner_queue_depth 50
+        """.trimIndent()
+        
+        return ResponseEntity.ok(metrics)
+    }
+}

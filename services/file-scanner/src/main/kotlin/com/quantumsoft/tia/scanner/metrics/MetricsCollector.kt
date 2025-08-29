@@ -11,4 +11,6 @@ interface MetricsCollector {
     fun recordFilesQueued(count: Int)
     fun recordQueueDepth(depth: Long)
     fun recordProcessingDuration(duration: Duration)
+    fun getMetricsSummary(): MetricsSummary
+    fun reset()
 }
