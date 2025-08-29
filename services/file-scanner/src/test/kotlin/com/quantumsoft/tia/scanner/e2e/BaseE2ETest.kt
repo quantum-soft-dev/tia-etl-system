@@ -17,8 +17,7 @@ import org.testcontainers.utility.DockerImageName
         "spring.profiles.active=test",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "spring.liquibase.enabled=false",
-        "spring.quartz.job-store-type=memory",
-        "spring.quartz.properties.org.quartz.jobStore.class=org.quartz.simpl.RAMJobStore",
+        "spring.quartz.auto-startup=false",
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect",
         "logging.level.com.quantumsoft.tia=DEBUG"
     ]

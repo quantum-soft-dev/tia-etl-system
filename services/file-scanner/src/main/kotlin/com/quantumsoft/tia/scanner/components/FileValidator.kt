@@ -2,6 +2,7 @@ package com.quantumsoft.tia.scanner.components
 
 import com.quantumsoft.tia.scanner.models.FileFormat
 import com.quantumsoft.tia.scanner.models.ValidationResult
+import org.springframework.stereotype.Component
 import java.nio.file.Path
 import java.security.MessageDigest
 import kotlin.io.path.*
@@ -10,6 +11,8 @@ import kotlin.io.path.*
  * File validator component that performs format detection, accessibility checks,
  * hash calculation, and content validation.
  */
+
+@Component
 class FileValidator {
     
     /**

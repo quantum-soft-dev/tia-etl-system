@@ -8,13 +8,20 @@ import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Assertions.*
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.context.TestConfiguration
+import org.springframework.context.annotation.Profile
+import org.testcontainers.junit.jupiter.Testcontainers
 import java.io.File
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.time.Instant
 
+@Profile("e2e")
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-class SimplifiedFileOperationsE2ETest : BaseE2ETest() {
+@Testcontainers
+@SpringBootTest
+class SimplifiedFileOperationsE2ETest { //: BaseE2ETest() {
 
     @Autowired
     private lateinit var fileValidator: FileValidator

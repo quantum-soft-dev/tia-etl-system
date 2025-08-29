@@ -15,7 +15,8 @@
       "Read(/tmp/zte-parser-analysis/src/main/java/com/bd/asn/zte/data/pgw_r8_new/**)",
       "Bash(./gradlew test:*)",
       "Bash(./gradlew:*)",
-      "Bash(../../gradlew test --tests \"*QueueManagerTest*\")"
+      "Bash(../../gradlew test --tests \"*QueueManagerTest*\")",
+      "Bash(../../gradlew test:*)"
     ],
     "deny": [],
     "ask": []

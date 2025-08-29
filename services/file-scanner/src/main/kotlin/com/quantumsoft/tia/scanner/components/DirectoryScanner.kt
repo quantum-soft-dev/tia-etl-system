@@ -6,6 +6,7 @@ import com.quantumsoft.tia.scanner.models.ScanResult
 import com.quantumsoft.tia.scanner.models.ScannedFile
 import com.quantumsoft.tia.scanner.models.SkippedFile
 import kotlinx.coroutines.withTimeout
+import org.springframework.stereotype.Component
 import java.nio.file.*
 import java.time.Duration
 import java.time.Instant
@@ -15,6 +16,7 @@ import kotlin.io.path.*
  * Directory scanner component that recursively scans directories for files matching patterns.
  * Implements file discovery, filtering, validation, and metrics collection.
  */
+@Component
 class DirectoryScanner(
     private val metricsCollector: MetricsCollector? = null
 ) {
