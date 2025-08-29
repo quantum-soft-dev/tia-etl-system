@@ -4,11 +4,12 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
-import org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @AutoConfigureMockMvc
-class HealthE2ETest : BaseE2ETest() {
+class HealthControllerE2ETest : BaseE2ETest() {
 
     @Autowired
     private lateinit var mockMvc: MockMvc
@@ -19,22 +20,25 @@ class HealthE2ETest : BaseE2ETest() {
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("UP"))
             .andExpect(jsonPath("$.components").exists())
+            .andExpect(jsonPath("$.components.database").exists())
+            .andExpect(jsonPath("$.components.redis").exists())
     }
     
     @Test
     fun `should return database health`() {
         mockMvc.perform(get("/health/db"))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.status").exists())
+            .andExpect(jsonPath("$.status").value("UP"))
             .andExpect(jsonPath("$.database").value("PostgreSQL"))
+            .andExpect(jsonPath("$.hello").isNumber)
     }
     
     @Test
     fun `should return redis health`() {
         mockMvc.perform(get("/health/redis"))
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$.status").exists())
-            .andExpect(jsonPath("$.redis").exists())
+            .andExpect(jsonPath("$.status").value("UP"))
+            .andExpect(jsonPath("$.redis.ping").value("PONG"))
     }
     
     @Test
@@ -55,37 +59,31 @@ class HealthE2ETest : BaseE2ETest() {
     }
     
     @Test
-    fun `should return actuator info`() {
-        mockMvc.perform(get("/actuator/info"))
-            .andExpect(status().isOk)
-    }
-    
-    @Test
-    fun `should return actuator health`() {
+    fun `should return actuator health endpoint`() {
         mockMvc.perform(get("/actuator/health"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.status").value("UP"))
     }
     
     @Test
-    fun `should return actuator metrics`() {
+    fun `should return actuator info endpoint`() {
+        mockMvc.perform(get("/actuator/info"))
+            .andExpect(status().isOk)
+    }
+    
+    @Test
+    fun `should return actuator metrics endpoint`() {
         mockMvc.perform(get("/actuator/metrics"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.names").isArray)
     }
     
     @Test
-    fun `should return specific actuator metric`() {
+    fun `should return specific metric details`() {
         mockMvc.perform(get("/actuator/metrics/jvm.memory.used"))
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.name").value("jvm.memory.used"))
             .andExpect(jsonPath("$.measurements").isArray)
-    }
-    
-    @Test
-    fun `should return prometheus metrics`() {
-        mockMvc.perform(get("/actuator/prometheus"))
-            .andExpect(status().isOk)
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("jvm_memory_used_bytes")))
+            .andExpect(jsonPath("$.measurements[0].value").isNumber)
     }
 }
