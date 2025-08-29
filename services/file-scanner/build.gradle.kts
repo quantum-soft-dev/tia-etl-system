@@ -36,6 +36,7 @@ dependencies {
     // Database
     implementation("org.postgresql:postgresql")
     implementation("org.liquibase:liquibase-core")
+    runtimeOnly("com.h2database:h2") // For Swagger testing
     
     // Redis
     implementation("redis.clients:jedis")
@@ -45,6 +46,10 @@ dependencies {
     
     // Metrics
     implementation("io.micrometer:micrometer-registry-prometheus")
+    
+    // OpenAPI/Swagger
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
+    implementation("org.springdoc:springdoc-openapi-kotlin:1.8.0")
     
     // Parser API
     implementation(project(":core:parser-api"))

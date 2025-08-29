@@ -1,8 +1,8 @@
 package com.quantumsoft.tia.scanner.services
 
 import com.quantumsoft.tia.scanner.components.QueueManager
-import com.quantumsoft.tia.scanner.controllers.CleanupResultDto
-import com.quantumsoft.tia.scanner.controllers.FileStatisticsDto
+import com.quantumsoft.tia.scanner.dto.files.CleanupResultDto
+import com.quantumsoft.tia.scanner.dto.files.FileStatisticsDto
 import com.quantumsoft.tia.scanner.dto.FileStatusDto
 import com.quantumsoft.tia.scanner.dto.FileStatusFilter
 import com.quantumsoft.tia.scanner.entities.FileStatus
