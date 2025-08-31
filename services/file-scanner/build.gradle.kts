@@ -49,7 +49,6 @@ dependencies {
     
     // OpenAPI/Swagger
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
-    implementation("org.springdoc:springdoc-openapi-kotlin:1.8.0")
     
     // Parser API
     implementation(project(":core:parser-api"))
