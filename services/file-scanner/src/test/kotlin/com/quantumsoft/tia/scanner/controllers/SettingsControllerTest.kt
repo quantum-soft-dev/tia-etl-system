@@ -173,11 +173,12 @@ class SettingsControllerTest {
     fun `should get settings by pattern`() {
         // Given
         val pattern = "scanner.*"
-        val settings = mapOf(
+        val allSettings = mapOf(
             "scanner.file.threshold" to "5000",
-            "scanner.enabled" to "true"
+            "scanner.enabled" to "true",
+            "other.setting" to "value"
         )
-        coEvery { settingsService.getSettings(any()) } returns settings
+        coEvery { settingsService.getAllSettings() } returns allSettings
 
         // When & Then
         mockMvc.perform(get("/api/v1/settings/search")

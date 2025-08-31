@@ -118,6 +118,7 @@ class SettingsChangeListenerImplTest {
             settingsCache, 
             notifier
         )
+        listenerWithNotifier.init() // Call init explicitly in test
 
         // Then
         verify { notifier.subscribeToChanges(listenerWithNotifier) }

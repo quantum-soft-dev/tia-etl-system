@@ -106,15 +106,36 @@ class SettingsCacheImpl(
         return cache.size
     }
 
-    override suspend fun computeIfAbsent(key: String, compute: suspend () -> String): String = mutex.withLock {
-        val existing = get(key)
+    override suspend fun computeIfAbsent(key: String, compute: suspend () -> String): String {
+        // First check without lock to avoid deadlock
+        val existing = getInternal(key)
         if (existing != null) {
             return existing
         }
         
-        val computed = compute()
-        put(key, computed)
-        return computed
+        // Now lock and check again (double-check pattern)
+        return mutex.withLock {
+            val entry = cache[key]
+            if (entry != null && !isExpired(entry)) {
+                hitCount.incrementAndGet()
+                entry.value
+            } else {
+                val computed = compute()
+                cache[key] = CacheEntry(computed, Instant.now().plus(ttl))
+                computed
+            }
+        }
+    }
+    
+    private suspend fun getInternal(key: String): String? = mutex.withLock {
+        val entry = cache[key]
+        if (entry != null && !isExpired(entry)) {
+            hitCount.incrementAndGet()
+            entry.value
+        } else {
+            missCount.incrementAndGet()
+            null
+        }
     }
 
     override fun getStatistics(): CacheStatistics {
