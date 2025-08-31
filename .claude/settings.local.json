@@ -16,7 +16,9 @@
       "Bash(./gradlew test:*)",
       "Bash(./gradlew:*)",
       "Bash(../../gradlew test --tests \"*QueueManagerTest*\")",
-      "Bash(../../gradlew test:*)"
+      "Bash(../../gradlew test:*)",
+      "Bash(sed:*)",
+      "Bash(gradle test:*)"
     ],
     "deny": [],
     "ask": []

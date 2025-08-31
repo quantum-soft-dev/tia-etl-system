@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/changes/004-add-indexes.yaml
   - include:
       file: db/changelog/changes/005-add-test-data.yaml
+  - include:
+      file: db/changelog/changes/006-create-system-settings-table.yaml
