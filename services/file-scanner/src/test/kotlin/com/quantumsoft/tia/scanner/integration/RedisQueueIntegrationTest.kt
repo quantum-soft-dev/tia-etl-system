@@ -1,6 +1,7 @@
 package com.quantumsoft.tia.scanner.integration
 
 import com.quantumsoft.tia.scanner.components.QueueManager
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.quantumsoft.tia.scanner.models.*
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
@@ -51,7 +52,7 @@ class RedisQueueIntegrationTest {
         // Clear Redis before each test
         redisTemplate.connectionFactory?.connection?.flushAll()
         
-        queueManager = QueueManager(redisTemplate)
+        queueManager = QueueManager(redisTemplate, null, ObjectMapper().findAndRegisterModules())
     }
     
     @Test

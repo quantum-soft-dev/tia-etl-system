@@ -33,9 +33,10 @@ class FileStatusService(
     }
     
     fun queryFiles(filter: FileStatusFilter, pageable: Pageable): Page<FileStatusDto> {
+        val statuses = filter.statuses?.takeIf { it.isNotEmpty() }
         val files = scannedFileRepository.findWithFilters(
             jobId = filter.jobId,
-            status = if (filter.statuses?.isNotEmpty() == true) filter.statuses.first() else null,
+            statuses = statuses,
             fromDate = filter.fromDate,
             toDate = filter.toDate,
             filePattern = filter.filePattern,
@@ -109,7 +110,7 @@ class FileStatusService(
     
     fun getStatistics(jobId: UUID?): FileStatisticsDto {
         val files = if (jobId != null) {
-            scannedFileRepository.findAllByScanJobIdAndStatus(jobId, FileStatus.COMPLETED)
+            scannedFileRepository.findAllByScanJobId(jobId)
         } else {
             scannedFileRepository.findAll()
         }

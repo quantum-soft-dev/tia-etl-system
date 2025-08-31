@@ -44,7 +44,7 @@ class FileStatusServiceTest {
         
         every {
             scannedFileRepository.findWithFilters(
-                filter.jobId, FileStatus.COMPLETED, null, null,
+                filter.jobId, listOf(FileStatus.COMPLETED), null, null,
                 filter.filePattern, null, null, pageable
             )
         } returns PageImpl(listOf(scannedFile))
@@ -247,7 +247,7 @@ class FileStatusServiceTest {
             )
         )
         
-        every { scannedFileRepository.findAllByScanJobIdAndStatus(jobId, FileStatus.COMPLETED) } returns files
+        every { scannedFileRepository.findAllByScanJobId(jobId) } returns files
         
         // When
         val result = fileStatusService.getStatistics(jobId)

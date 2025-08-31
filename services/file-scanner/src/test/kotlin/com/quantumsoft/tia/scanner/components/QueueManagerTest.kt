@@ -17,6 +17,7 @@ class QueueManagerTest {
     private lateinit var valueOps: ValueOperations<String, String>
     private lateinit var listOps: ListOperations<String, String>
     private lateinit var metricsCollector: MetricsCollector
+    private lateinit var objectMapper: com.fasterxml.jackson.databind.ObjectMapper
     private lateinit var queueManager: QueueManager
     
     @BeforeEach
@@ -25,12 +26,13 @@ class QueueManagerTest {
         valueOps = mockk(relaxed = true)
         listOps = mockk(relaxed = true)
         metricsCollector = mockk(relaxed = true)
+        objectMapper = com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
         
         every { redisTemplate.opsForValue() } returns valueOps
         every { redisTemplate.opsForList() } returns listOps
         every { redisTemplate.keys(any()) } returns emptySet()
         
-        queueManager = QueueManager(redisTemplate, metricsCollector)
+        queueManager = QueueManager(redisTemplate, metricsCollector, objectMapper)
     }
     
     @Test

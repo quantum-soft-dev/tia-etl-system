@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component
 import java.nio.file.*
 import java.time.Duration
 import java.time.Instant
+import java.security.MessageDigest
 import kotlin.io.path.*
 
 /**
@@ -73,12 +74,11 @@ class DirectoryScanner(
         val skippedDirectories = mutableListOf<String>()
         
         try {
-            val pathMatcher = FileSystems.getDefault().getPathMatcher("glob:${config.filePattern}")
-            // Create case-insensitive version for pattern matching
-            val caseInsensitivePattern = config.filePattern.lowercase()
+            // Precompile case-insensitive regex from glob pattern
+            val patternRegex = globToRegex(config.filePattern)
             val maxDepth = if (config.recursiveScan) config.maxDepth + 1 else 1
             
-            val visitOptions = if (config.followSymlinks) arrayOf(FileVisitOption.FOLLOW_LINKS) else arrayOf<FileVisitOption>()
+            val visitOptions = if (config.followSymlinks) arrayOf(FileVisitOption.FOLLOW_LINKS) else arrayOf()
             Files.walk(sourceDir, maxDepth, *visitOptions)
                 .use { paths ->
                     paths.forEach { path ->
@@ -87,7 +87,7 @@ class DirectoryScanner(
                                 path == sourceDir -> return@forEach // Skip root directory
                                 path.isDirectory() -> return@forEach // Skip directories
                                 !config.followSymlinks && path.isSymbolicLink() -> return@forEach // Skip symlinks if not following
-                                !matchesPattern(path.fileName.toString(), caseInsensitivePattern) -> return@forEach // Skip files that don't match pattern
+                                !matchesPattern(path.fileName.toString(), patternRegex) -> return@forEach // Skip files that don't match pattern
                                 else -> {
                                     val fileSize = path.fileSize()
                                     val maxSizeBytes = config.maxFileSizeMb * 1024L * 1024L
@@ -107,7 +107,8 @@ class DirectoryScanner(
                                             filePath = path.toString(),
                                             fileName = path.fileName.toString(),
                                             fileSizeBytes = fileSize,
-                                            lastModified = path.getLastModifiedTime().toInstant()
+                                            lastModified = path.getLastModifiedTime().toInstant(),
+                                            fileHash = calculateFileHash(path)
                                         )
                                     )
                                 }
@@ -145,11 +146,53 @@ class DirectoryScanner(
     }
     
     /**
-     * Case-insensitive pattern matching for filenames
+     * Case-insensitive glob pattern matching compiled to Regex.
      */
-    private fun matchesPattern(fileName: String, pattern: String): Boolean {
-        val lowerFileName = fileName.lowercase()
-        val globPattern = pattern.replace("*", ".*").replace("?", ".")
-        return lowerFileName.matches(Regex(globPattern))
+    private fun matchesPattern(fileName: String, compiled: Regex): Boolean {
+        return compiled.matches(fileName)
+    }
+
+    /**
+     * Convert a glob pattern to a Regex with IGNORE_CASE.
+     * Supports '*' and '?' wildcards; escapes other regex metacharacters.
+     */
+    private fun globToRegex(glob: String): Regex {
+        val sb = StringBuilder()
+        sb.append('^')
+        var i = 0
+        while (i < glob.length) {
+            when (val ch = glob[i]) {
+                '*' -> sb.append(".*")
+                '?' -> sb.append('.')
+                '.', '(', ')', '+', '|', '^', '$', '{', '}', '[', ']', '\\' -> {
+                    sb.append('\\').append(ch)
+                }
+                else -> sb.append(ch)
+            }
+            i++
+        }
+        sb.append('$')
+        return Regex(sb.toString(), setOf(RegexOption.IGNORE_CASE))
+    }
+
+    /**
+     * Calculates SHA-256 hash of the file contents. Returns empty string on failure.
+     */
+    private fun calculateFileHash(path: Path): String {
+        return try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            path.inputStream().use { input ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                var read: Int
+                while (true) {
+                    read = input.read(buffer)
+                    if (read <= 0) break
+                    digest.update(buffer, 0, read)
+                }
+            }
+            digest.digest().joinToString("") { "%02x".format(it) }
+        } catch (e: Exception) {
+            ""
+        }
     }
 }

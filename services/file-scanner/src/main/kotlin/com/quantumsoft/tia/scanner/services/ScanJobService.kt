@@ -11,13 +11,15 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.Instant
 import java.util.UUID
+import com.quantumsoft.tia.scanner.scheduler.JobScheduler
 
 @Service
 @Transactional
 class ScanJobService(
     private val scanJobRepository: ScanJobRepository,
     private val executionRepository: ScanJobExecutionRepository,
-    private val scannedFileRepository: ScannedFileRepository
+    private val scannedFileRepository: ScannedFileRepository,
+    private val jobScheduler: JobScheduler
 ) {
     
     companion object {
@@ -130,7 +132,12 @@ class ScanJobService(
         val savedExecution = executionRepository.save(execution)
         logger.info("Triggered scan for job: ${job.name}, execution ID: ${savedExecution.id}")
         
-        // TODO: Actually trigger the scan through scheduler/queue
+        // Trigger the Quartz job for immediate execution
+        try {
+            jobScheduler.triggerJobNow(jobId)
+        } catch (e: Exception) {
+            logger.warn("Failed to trigger Quartz job immediately for jobId=$jobId: ${e.message}")
+        }
         
         return ScanExecutionDto(
             executionId = savedExecution.id,

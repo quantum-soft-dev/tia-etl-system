@@ -61,10 +61,9 @@ databaseChangeLog:
             referencedColumnNames: id
             constraintName: fk_executions_job
             onDelete: CASCADE
-        - addCheckConstraint:
-            tableName: scan_job_executions
-            constraintName: chk_execution_status
-            sql: status IN ('RUNNING', 'COMPLETED', 'FAILED')
+        - sql:
+            sql: ALTER TABLE scan_job_executions ADD CONSTRAINT chk_execution_status CHECK (status IN ('RUNNING', 'COMPLETED', 'FAILED'));
+
       rollback:
         - dropTable:
             tableName: scan_job_executions

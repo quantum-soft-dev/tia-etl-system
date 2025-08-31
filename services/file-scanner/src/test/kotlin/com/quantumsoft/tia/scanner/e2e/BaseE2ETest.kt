@@ -17,14 +17,25 @@ import java.time.Duration
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
     properties = [
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.liquibase.enabled=false",
+        "spring.jpa.hibernate.ddl-auto=validate",
+        "spring.liquibase.enabled=true",
         "spring.quartz.auto-startup=false",
         "spring.task.scheduling.pool.size=1",
         "logging.level.com.quantumsoft.tia=DEBUG",
         "logging.level.org.springframework.web=INFO"
     ]
 )
+//@SpringBootTest(
+//    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+//    properties = [
+//        "spring.jpa.hibernate.ddl-auto=create-drop",
+//        "spring.liquibase.enabled=false",
+//        "spring.quartz.auto-startup=false",
+//        "spring.task.scheduling.pool.size=1",
+//        "logging.level.com.quantumsoft.tia=DEBUG",
+//        "logging.level.org.springframework.web=INFO"
+//    ]
+//)
 @Testcontainers
 @ActiveProfiles("e2e", "test")
 @Import(E2ETestConfig::class)

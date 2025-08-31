@@ -39,7 +39,7 @@ interface ScannedFileRepository : JpaRepository<ScannedFileEntity, UUID> {
     @Query("""
         SELECT f FROM ScannedFileEntity f
         WHERE (:jobId IS NULL OR f.scanJob.id = :jobId)
-        AND (:status IS NULL OR f.status = :status)
+        AND (:statuses IS NULL OR f.status IN :statuses)
         AND (:fromDate IS NULL OR f.discoveredAt >= :fromDate)
         AND (:toDate IS NULL OR f.discoveredAt <= :toDate)
         AND (:filePattern IS NULL OR f.fileName LIKE %:filePattern%)
@@ -49,7 +49,7 @@ interface ScannedFileRepository : JpaRepository<ScannedFileEntity, UUID> {
     """)
     fun findWithFilters(
         @Param("jobId") jobId: UUID?,
-        @Param("status") status: FileStatus?,
+        @Param("statuses") statuses: List<FileStatus>?,
         @Param("fromDate") fromDate: Instant?,
         @Param("toDate") toDate: Instant?,
         @Param("filePattern") filePattern: String?,
@@ -102,4 +102,7 @@ interface ScannedFileRepository : JpaRepository<ScannedFileEntity, UUID> {
         AND f.status IN ('COMPLETED', 'SKIPPED')
     """)
     fun deleteOldProcessedFiles(@Param("cutoffDate") cutoffDate: Instant): Int
+
+    // Fetch all files for a job (all statuses)
+    fun findAllByScanJobId(jobId: UUID): List<ScannedFileEntity>
 }

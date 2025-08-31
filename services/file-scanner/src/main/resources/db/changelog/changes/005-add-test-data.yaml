@@ -27,7 +27,7 @@ databaseChangeLog:
                   value: "CRON"
               - column:
                   name: scan_interval_value
-                  value: "*/5 * * * *"
+                  value: "0/5 * * ? * * *"
               - column:
                   name: parser_id
                   value: "zte-asn1-parser"

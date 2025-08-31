@@ -83,10 +83,8 @@ databaseChangeLog:
             tableName: scanned_files
             columnNames: file_path, file_hash
             constraintName: uk_file_path_hash
-        - addCheckConstraint:
-            tableName: scanned_files
-            constraintName: chk_file_status
-            sql: status IN ('DISCOVERED', 'QUEUED', 'PROCESSING', 'COMPLETED', 'FAILED', 'SKIPPED')
+        - sql:
+            sql: ALTER TABLE scanned_files ADD CONSTRAINT chk_file_status CHECK (status IN ('DISCOVERED', 'QUEUED', 'PROCESSING', 'COMPLETED', 'FAILED', 'SKIPPED'));
       rollback:
         - dropTable:
             tableName: scanned_files

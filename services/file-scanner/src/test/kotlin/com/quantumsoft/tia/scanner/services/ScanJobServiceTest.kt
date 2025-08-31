@@ -19,13 +19,15 @@ class ScanJobServiceTest {
     private lateinit var executionRepository: ScanJobExecutionRepository
     private lateinit var scannedFileRepository: ScannedFileRepository
     private lateinit var scanJobService: ScanJobService
+    private lateinit var jobScheduler: com.quantumsoft.tia.scanner.scheduler.JobScheduler
     
     @BeforeEach
     fun setUp() {
         scanJobRepository = mockk(relaxed = true)
         executionRepository = mockk(relaxed = true)
         scannedFileRepository = mockk(relaxed = true)
-        scanJobService = ScanJobService(scanJobRepository, executionRepository, scannedFileRepository)
+        jobScheduler = mockk(relaxed = true)
+        scanJobService = ScanJobService(scanJobRepository, executionRepository, scannedFileRepository, jobScheduler)
     }
     
     @Test

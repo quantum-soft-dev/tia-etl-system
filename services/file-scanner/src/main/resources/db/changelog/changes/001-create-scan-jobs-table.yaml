@@ -84,10 +84,8 @@ databaseChangeLog:
               - column:
                   name: updated_by
                   type: VARCHAR(100)
-        - addCheckConstraint:
-            tableName: scan_jobs
-            constraintName: chk_scan_interval_type
-            sql: scan_interval_type IN ('CRON', 'FIXED')
+        - sql:
+            sql: ALTER TABLE scan_jobs ADD CONSTRAINT chk_scan_interval_type CHECK (scan_interval_type IN ('CRON', 'FIXED'));
       rollback:
         - dropTable:
             tableName: scan_jobs
