@@ -1,6 +1,7 @@
 package com.quantumsoft.tia.scanner.services
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -220,7 +221,7 @@ class SettingsCacheTest {
 
         // When - Concurrent puts
         val putJobs = keys.map { key ->
-            kotlinx.coroutines.launch {
+            launch {
                 cache.put(key, "value-$key")
             }
         }

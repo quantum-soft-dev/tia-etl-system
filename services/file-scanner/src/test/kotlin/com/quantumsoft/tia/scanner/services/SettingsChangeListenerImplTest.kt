@@ -3,6 +3,8 @@ package com.quantumsoft.tia.scanner.services
 import io.mockk.*
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit5.MockKExtension
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -173,11 +175,11 @@ class SettingsChangeListenerImplTest {
 
         // When - Simulate concurrent updates
         val jobs = updates.map { (key, value) ->
-            kotlinx.coroutines.launch {
+            launch {
                 listener.onSettingChanged(key, value)
             }
         }
-        jobs.forEach { it.join() }
+        jobs.joinAll()
 
         // Then
         updates.forEach { (key, value) ->
