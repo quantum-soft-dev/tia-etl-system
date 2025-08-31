@@ -38,11 +38,21 @@ class MetricsCollectorImpl(
         .register(meterRegistry)
     
     private val currentQueueDepth = AtomicLong(0)
+    private val currentThresholdUtilization = AtomicLong(0)
+    
+    private val thresholdWarningCounter = Counter.builder("scanner.threshold.warnings")
+        .description("Number of times threshold warning was triggered")
+        .register(meterRegistry)
     
     init {
         // Register gauge for queue depth
         Gauge.builder("scanner.queue.depth", currentQueueDepth) { it.get().toDouble() }
             .description("Current queue depth")
+            .register(meterRegistry)
+            
+        // Register gauge for threshold utilization
+        Gauge.builder("scanner.threshold.utilization", currentThresholdUtilization) { it.get().toDouble() }
+            .description("Current threshold utilization percentage")
             .register(meterRegistry)
     }
     
@@ -97,6 +107,17 @@ class MetricsCollectorImpl(
     
     override fun recordProcessingDuration(duration: Duration) {
         processingDurationTimer.record(duration)
+    }
+    
+    override fun recordThresholdUtilization(percentage: Double) {
+        currentThresholdUtilization.set(percentage.toLong())
+        
+        // Also record as a gauge with current value
+        meterRegistry.gauge("scanner.threshold.utilization.current", percentage)
+    }
+    
+    override fun recordThresholdWarning() {
+        thresholdWarningCounter.increment()
     }
     
     override fun getMetricsSummary(): MetricsSummary {

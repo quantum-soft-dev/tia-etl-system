@@ -6,12 +6,12 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.module.SimpleModule
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
-import org.springframework.data.domain.Sort
 
 class PageJacksonModule : SimpleModule() {
     init {
-        addSerializer(Page::class.java, PageSerializer() as JsonSerializer<Page<*>>)
-        addSerializer(PageImpl::class.java, PageSerializer() as JsonSerializer<PageImpl<*>>)
+        val pageSerializer = PageSerializer()
+        addSerializer(Page::class.java, pageSerializer)
+        addSerializer(PageImpl::class.java, pageSerializer)
     }
 }
 
