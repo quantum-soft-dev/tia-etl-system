@@ -13,6 +13,9 @@ interface MetricsCollector {
     fun recordProcessingDuration(duration: Duration)
     fun recordThresholdUtilization(percentage: Double)
     fun recordThresholdWarning()
+    fun recordBackpressureEvent()
+    fun recordBackpressureRetry(attemptNumber: Int)
+    fun recordBackpressureResolution(durationMs: Long)
     fun getMetricsSummary(): MetricsSummary
     fun reset()
 }

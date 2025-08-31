@@ -22,15 +22,15 @@
   - [ ] 2.7 Write E2E tests for settings propagation
   - [ ] 2.8 Verify all synchronization tests pass
 
-- [ ] 3. File Threshold Feature Implementation
-  - [ ] 3.1 Write tests for FileThresholdValidator component
-  - [ ] 3.2 Implement FileThresholdValidator with configurable limit
-  - [ ] 3.3 Write tests for QueueManager threshold enforcement
-  - [ ] 3.4 Integrate threshold check in QueueManager.enqueueFile()
-  - [ ] 3.5 Write tests for threshold exceeded handling strategies
-  - [ ] 3.6 Implement backpressure and retry logic for threshold
-  - [ ] 3.7 Add threshold metrics and monitoring
-  - [ ] 3.8 Verify all threshold tests pass
+- [x] 3. File Threshold Feature Implementation
+  - [x] 3.1 Write tests for FileThresholdValidator component
+  - [x] 3.2 Implement FileThresholdValidator with configurable limit
+  - [x] 3.3 Write tests for QueueManager threshold enforcement
+  - [x] 3.4 Integrate threshold check in QueueManager.enqueueFile()
+  - [x] 3.5 Write tests for threshold exceeded handling strategies
+  - [x] 3.6 Implement backpressure and retry logic for threshold
+  - [x] 3.7 Add threshold metrics and monitoring
+  - [x] 3.8 Verify all threshold tests pass
 
 - [ ] 4. Database Migration and Configuration
   - [ ] 4.1 Write Liquibase migration for settings table
