@@ -1,8 +1,6 @@
 package com.quantumsoft.tia.scanner.e2e
 
-import com.quantumsoft.tia.scanner.config.E2ETestConfig
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
@@ -38,7 +36,6 @@ import java.time.Duration
 //)
 @Testcontainers
 @ActiveProfiles("e2e", "test")
-@Import(E2ETestConfig::class)
 abstract class BaseE2ETest {
 
     companion object {

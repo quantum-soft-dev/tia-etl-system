@@ -3,6 +3,8 @@ package com.quantumsoft.tia.scanner.components
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.quantumsoft.tia.scanner.models.*
 import com.quantumsoft.tia.scanner.metrics.MetricsCollector
+import com.quantumsoft.tia.scanner.validators.FileThresholdValidator
+import com.quantumsoft.tia.scanner.exceptions.ThresholdExceededException
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.data.redis.core.RedisTemplate
@@ -19,6 +21,7 @@ class QueueManager(
     private val redisTemplate: RedisTemplate<String, String>,
     private val metricsCollector: MetricsCollector? = null,
     private val objectMapper: ObjectMapper,
+    private val fileThresholdValidator: FileThresholdValidator? = null,
     private val instanceId: String = "scanner-${System.currentTimeMillis()}"
 ) {
     companion object {
@@ -39,6 +42,30 @@ class QueueManager(
     
     suspend fun queueFile(request: QueueRequest): QueueResult = coroutineScope {
         try {
+            // Check threshold if enabled
+            if (fileThresholdValidator != null && fileThresholdValidator.isThresholdEnabled()) {
+                val currentQueueSize = getCurrentQueueSize()
+                try {
+                    fileThresholdValidator.validateThreshold(currentQueueSize)
+                    
+                    // Record metrics if near threshold
+                    if (fileThresholdValidator.isNearThreshold(currentQueueSize, 80.0)) {
+                        metricsCollector?.recordThresholdWarning()
+                    }
+                    val utilization = fileThresholdValidator.getThresholdUtilization(currentQueueSize)
+                    metricsCollector?.recordThresholdUtilization(utilization)
+                } catch (e: ThresholdExceededException) {
+                    logger.warn("Queue threshold exceeded: ${e.message}")
+                    metricsCollector?.recordError("threshold_exceeded")
+                    return@coroutineScope QueueResult(
+                        success = false,
+                        queueId = null,
+                        message = "Queue threshold exceeded",
+                        error = e.message
+                    )
+                }
+            }
+            
             // Check if file is already queued (distributed lock)
             val lockKey = "$LOCK_PREFIX:${request.file.fileHash ?: request.file.filePath}"
             val lockAcquired = redisTemplate.opsForValue()
@@ -114,6 +141,32 @@ class QueueManager(
     }
     
     suspend fun batchQueue(requests: List<QueueRequest>): BatchQueueResult = coroutineScope {
+        // Check batch threshold if enabled
+        if (fileThresholdValidator != null && fileThresholdValidator.isThresholdEnabled()) {
+            val currentQueueSize = getCurrentQueueSize()
+            if (!fileThresholdValidator.canEnqueueBatch(currentQueueSize, requests.size)) {
+                logger.warn("Batch queue request rejected: would exceed threshold")
+                metricsCollector?.recordError("batch_threshold_exceeded")
+                
+                val failedResults = requests.map { request ->
+                    QueueResult(
+                        success = false,
+                        queueId = null,
+                        message = "Batch would exceed queue threshold",
+                        error = "Threshold check failed for batch"
+                    )
+                }
+                
+                return@coroutineScope BatchQueueResult(
+                    totalRequests = requests.size,
+                    successful = 0,
+                    failed = requests.size,
+                    duplicates = 0,
+                    results = failedResults
+                )
+            }
+        }
+        
         val results = mutableListOf<QueueResult>()
         val chunks = requests.chunked(MAX_BATCH_SIZE)
         
@@ -161,6 +214,18 @@ class QueueManager(
             logger.error("Failed to move message to DLQ: $queueId", e)
             false
         }
+    }
+    
+    private fun getCurrentQueueSize(): Int {
+        val priorities = listOf(Priority.HIGH, Priority.NORMAL, Priority.LOW)
+        var totalSize = 0L
+        
+        for (priority in priorities) {
+            val queueKey = getQueueKey(priority)
+            totalSize += redisTemplate.opsForList().size(queueKey) ?: 0
+        }
+        
+        return totalSize.toInt()
     }
     
     suspend fun getQueueStatistics(): QueueStatistics = coroutineScope {
@@ -263,7 +328,7 @@ class QueueManager(
             val scanned = redisTemplate.execute { connection ->
                 val keys = mutableListOf<String>()
                 val options = ScanOptions.scanOptions().match(pattern).count(1000).build()
-                connection.scan(options).use { cursor ->
+                connection.keyCommands().scan(options).use { cursor ->
                     while (cursor.hasNext()) {
                         val raw = cursor.next()
                         keys.add(String(raw, StandardCharsets.UTF_8))

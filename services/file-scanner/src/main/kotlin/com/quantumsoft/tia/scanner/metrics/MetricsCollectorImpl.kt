@@ -38,11 +38,33 @@ class MetricsCollectorImpl(
         .register(meterRegistry)
     
     private val currentQueueDepth = AtomicLong(0)
+    private val currentThresholdUtilization = AtomicLong(0)
+    
+    private val thresholdWarningCounter = Counter.builder("scanner.threshold.warnings")
+        .description("Number of times threshold warning was triggered")
+        .register(meterRegistry)
+    
+    private val backpressureEventCounter = Counter.builder("scanner.backpressure.events")
+        .description("Number of backpressure events")
+        .register(meterRegistry)
+    
+    private val backpressureRetryCounter = Counter.builder("scanner.backpressure.retries")
+        .description("Number of backpressure retries")
+        .register(meterRegistry)
+    
+    private val backpressureResolutionTimer = Timer.builder("scanner.backpressure.resolution.duration")
+        .description("Time taken to resolve backpressure")
+        .register(meterRegistry)
     
     init {
         // Register gauge for queue depth
         Gauge.builder("scanner.queue.depth", currentQueueDepth) { it.get().toDouble() }
             .description("Current queue depth")
+            .register(meterRegistry)
+            
+        // Register gauge for threshold utilization
+        Gauge.builder("scanner.threshold.utilization", currentThresholdUtilization) { it.get().toDouble() }
+            .description("Current threshold utilization percentage")
             .register(meterRegistry)
     }
     
@@ -97,6 +119,36 @@ class MetricsCollectorImpl(
     
     override fun recordProcessingDuration(duration: Duration) {
         processingDurationTimer.record(duration)
+    }
+    
+    override fun recordThresholdUtilization(percentage: Double) {
+        currentThresholdUtilization.set(percentage.toLong())
+        
+        // Also record as a gauge with current value
+        meterRegistry.gauge("scanner.threshold.utilization.current", percentage)
+    }
+    
+    override fun recordThresholdWarning() {
+        thresholdWarningCounter.increment()
+    }
+    
+    override fun recordBackpressureEvent() {
+        backpressureEventCounter.increment()
+    }
+    
+    override fun recordBackpressureRetry(attemptNumber: Int) {
+        backpressureRetryCounter.increment()
+        
+        // Also record with attempt number tag
+        Counter.builder("scanner.backpressure.retries.by.attempt")
+            .tag("attempt", attemptNumber.toString())
+            .description("Backpressure retries by attempt number")
+            .register(meterRegistry)
+            .increment()
+    }
+    
+    override fun recordBackpressureResolution(durationMs: Long) {
+        backpressureResolutionTimer.record(Duration.ofMillis(durationMs))
     }
     
     override fun getMetricsSummary(): MetricsSummary {

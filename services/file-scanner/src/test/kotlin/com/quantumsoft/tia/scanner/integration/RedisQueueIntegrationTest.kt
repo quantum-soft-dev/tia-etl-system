@@ -50,7 +50,7 @@ class RedisQueueIntegrationTest {
         }
         
         // Clear Redis before each test
-        redisTemplate.connectionFactory?.connection?.flushAll()
+        redisTemplate.connectionFactory?.connection?.serverCommands()?.flushAll()
         
         queueManager = QueueManager(redisTemplate, null, ObjectMapper().findAndRegisterModules())
     }

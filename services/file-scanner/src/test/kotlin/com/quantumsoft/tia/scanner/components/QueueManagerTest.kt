@@ -2,11 +2,14 @@ package com.quantumsoft.tia.scanner.components
 
 import com.quantumsoft.tia.scanner.models.*
 import com.quantumsoft.tia.scanner.metrics.MetricsCollector
+import com.quantumsoft.tia.scanner.validators.FileThresholdValidator
+import com.quantumsoft.tia.scanner.exceptions.ThresholdExceededException
 import io.mockk.*
 import kotlinx.coroutines.test.runTest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.data.redis.core.*
 import java.time.Duration
 import java.time.Instant
@@ -17,6 +20,7 @@ class QueueManagerTest {
     private lateinit var valueOps: ValueOperations<String, String>
     private lateinit var listOps: ListOperations<String, String>
     private lateinit var metricsCollector: MetricsCollector
+    private lateinit var fileThresholdValidator: FileThresholdValidator
     private lateinit var objectMapper: com.fasterxml.jackson.databind.ObjectMapper
     private lateinit var queueManager: QueueManager
     
@@ -26,13 +30,14 @@ class QueueManagerTest {
         valueOps = mockk(relaxed = true)
         listOps = mockk(relaxed = true)
         metricsCollector = mockk(relaxed = true)
+        fileThresholdValidator = mockk(relaxed = true)
         objectMapper = com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules()
         
         every { redisTemplate.opsForValue() } returns valueOps
         every { redisTemplate.opsForList() } returns listOps
         every { redisTemplate.keys(any()) } returns emptySet()
         
-        queueManager = QueueManager(redisTemplate, metricsCollector, objectMapper)
+        queueManager = QueueManager(redisTemplate, metricsCollector, objectMapper, fileThresholdValidator)
     }
     
     @Test
@@ -300,5 +305,181 @@ class QueueManagerTest {
         assertThat(result.duplicates).isEqualTo(1)
         
         verify(exactly = 2) { listOps.rightPush(any(), any()) }
+    }
+    
+    @Test
+    fun `should check threshold before queueing file`() = runTest {
+        // Given
+        val file = ScannedFile(
+            filePath = "/test/file.asn1",
+            fileName = "file.asn1",
+            fileSizeBytes = 1024,
+            lastModified = Instant.now(),
+            fileHash = "abc123"
+        )
+        
+        val request = QueueRequest(
+            jobId = "job-123",
+            file = file,
+            priority = Priority.NORMAL
+        )
+        
+        every { listOps.size(any()) } returns 10L
+        coEvery { fileThresholdValidator.isThresholdEnabled() } returns true
+        coEvery { fileThresholdValidator.validateThreshold(any()) } just Runs
+        coEvery { fileThresholdValidator.isNearThreshold(10, 80.0) } returns false
+        coEvery { fileThresholdValidator.getThresholdUtilization(10) } returns 10.0
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns true
+        
+        // When
+        val result = queueManager.queueFile(request)
+        
+        // Then
+        assertThat(result.success).isTrue()
+        coVerify { fileThresholdValidator.validateThreshold(any()) }
+    }
+    
+    @Test
+    fun `should reject file when threshold exceeded`() = runTest {
+        // Given
+        val file = ScannedFile(
+            filePath = "/test/file.asn1",
+            fileName = "file.asn1",
+            fileSizeBytes = 1024,
+            lastModified = Instant.now(),
+            fileHash = "abc123"
+        )
+        
+        val request = QueueRequest(
+            jobId = "job-123",
+            file = file,
+            priority = Priority.NORMAL
+        )
+        
+        every { listOps.size(any()) } returns 100L
+        coEvery { fileThresholdValidator.isThresholdEnabled() } returns true
+        coEvery { fileThresholdValidator.validateThreshold(any()) } throws 
+            ThresholdExceededException("Queue size exceeds threshold", 100, 50)
+        
+        // When
+        val result = queueManager.queueFile(request)
+        
+        // Then
+        assertThat(result.success).isFalse()
+        assertThat(result.error).isNotNull()
+        assertThat(result.error).contains("threshold")
+        verify { metricsCollector.recordError("threshold_exceeded") }
+        verify(exactly = 0) { listOps.rightPush(any(), any()) }
+    }
+    
+    @Test
+    fun `should skip threshold check when disabled`() = runTest {
+        // Given
+        val file = ScannedFile(
+            filePath = "/test/file.asn1",
+            fileName = "file.asn1",
+            fileSizeBytes = 1024,
+            lastModified = Instant.now(),
+            fileHash = "abc123"
+        )
+        
+        val request = QueueRequest(
+            jobId = "job-123",
+            file = file,
+            priority = Priority.NORMAL
+        )
+        
+        coEvery { fileThresholdValidator.isThresholdEnabled() } returns false
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns true
+        
+        // When
+        val result = queueManager.queueFile(request)
+        
+        // Then
+        assertThat(result.success).isTrue()
+        coVerify(exactly = 0) { fileThresholdValidator.validateThreshold(any()) }
+    }
+    
+    @Test
+    fun `should check batch threshold before queueing`() = runTest {
+        // Given
+        val files = listOf(
+            ScannedFile("/test/file1.asn1", "file1.asn1", 1024, Instant.now(), "hash1"),
+            ScannedFile("/test/file2.asn1", "file2.asn1", 2048, Instant.now(), "hash2"),
+            ScannedFile("/test/file3.asn1", "file3.asn1", 3072, Instant.now(), "hash3")
+        )
+        
+        val requests = files.map { file ->
+            QueueRequest("job-123", file)
+        }
+        
+        every { listOps.size(any()) } returns 40L
+        coEvery { fileThresholdValidator.isThresholdEnabled() } returns true
+        coEvery { fileThresholdValidator.canEnqueueBatch(any(), any()) } returns true
+        coEvery { fileThresholdValidator.validateThreshold(any()) } just Runs
+        coEvery { fileThresholdValidator.isNearThreshold(any(), any()) } returns false
+        coEvery { fileThresholdValidator.getThresholdUtilization(any()) } returns 40.0
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns true
+        
+        // When
+        val result = queueManager.batchQueue(requests)
+        
+        // Then
+        assertThat(result.successful).isEqualTo(3)
+        coVerify { fileThresholdValidator.canEnqueueBatch(any(), any()) }
+    }
+    
+    @Test
+    fun `should reject batch when would exceed threshold`() = runTest {
+        // Given
+        val files = (1..5).map { i ->
+            ScannedFile("/test/file$i.asn1", "file$i.asn1", 1024, Instant.now(), "hash$i")
+        }
+        
+        val requests = files.map { file ->
+            QueueRequest("job-123", file)
+        }
+        
+        every { listOps.size(any()) } returns 97L
+        coEvery { fileThresholdValidator.isThresholdEnabled() } returns true
+        coEvery { fileThresholdValidator.canEnqueueBatch(any(), any()) } returns false
+        
+        // When
+        val result = queueManager.batchQueue(requests)
+        
+        // Then
+        assertThat(result.successful).isEqualTo(0)
+        assertThat(result.failed).isEqualTo(5)
+        assertThat(result.results.all { !it.success }).isTrue()
+        verify { metricsCollector.recordError("batch_threshold_exceeded") }
+    }
+    
+    @Test
+    fun `should record threshold metrics`() = runTest {
+        // Given
+        val file = ScannedFile(
+            filePath = "/test/file.asn1",
+            fileName = "file.asn1",
+            fileSizeBytes = 1024,
+            lastModified = Instant.now(),
+            fileHash = "abc123"
+        )
+        
+        val request = QueueRequest("job-123", file)
+        
+        every { listOps.size(any()) } returns 75L
+        coEvery { fileThresholdValidator.isThresholdEnabled() } returns true
+        coEvery { fileThresholdValidator.isNearThreshold(any(), any()) } returns true
+        coEvery { fileThresholdValidator.getThresholdUtilization(any()) } returns 75.0
+        coEvery { fileThresholdValidator.validateThreshold(any()) } just Runs
+        every { valueOps.setIfAbsent(any(), any(), any<Duration>()) } returns true
+        
+        // When
+        val result = queueManager.queueFile(request)
+        
+        // Then
+        assertThat(result.success).isTrue()
+        verify { metricsCollector.recordThresholdUtilization(any()) }
+        verify { metricsCollector.recordThresholdWarning() }
     }
 }
