@@ -22,7 +22,8 @@
       "Bash(gradle clean:*)",
       "Bash(gradle build:*)",
       "Bash(gradle:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(afplay:*)"
     ],
     "deny": [],
     "ask": []
